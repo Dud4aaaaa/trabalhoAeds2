@@ -1,0 +1,401 @@
+from faker import Faker
+import random
+import pickle
+
+fake = Faker("pt_BR")
+cursos = [
+    "Sistemas de Informacao",
+    "Engenharia de Computacao",
+    "Ciencia da Computacao",
+    "Administracao",
+    "Engenharia de Producao",
+    "Matematica",
+    "Direito"
+]
+def criar_aluno(matricula):
+    nome_mae = fake.name()
+    nome_pai = fake.name()
+    sobrenome_mae = nome_mae.split()[-1] 
+    sobrenome_pai = nome_pai.split()[-1]
+    nome_aluno = ( fake.first_name() + " " + sobrenome_pai + " " + sobrenome_mae )
+    aluno = {
+        "matricula": matricula,
+        "nome": nome_aluno,
+        "cpf": fake.cpf(),
+        "curso": random.choice(cursos),
+        "filiacao_mae": nome_mae,
+        "filiacao_pai": nome_pai,
+        "ano_ingresso":  random.randint(2015, 2026),
+        "ca": round(random.uniform(0, 10), 2)
+        
+    }
+    return aluno
+
+quantidade = int(input("Digite a quantidade de registros que você quer: "))
+def merge_sort(alunos):
+
+    if len(alunos) <= 1:
+        return alunos
+
+    meio = len(alunos) // 2
+
+    esquerda = merge_sort(alunos[:meio])
+    direita = merge_sort(alunos[meio:])
+
+    resultado = []
+
+    i = 0
+    j = 0
+
+    while i < len(esquerda) and j < len(direita):
+
+        if esquerda[i]["matricula"] < direita[j]["matricula"]:
+
+            resultado.append(esquerda[i])
+            i += 1
+
+        else:
+
+            resultado.append(direita[j])
+            j += 1
+
+    while i < len(esquerda):
+
+        resultado.append(esquerda[i])
+        i += 1
+
+    while j < len(direita):
+
+        resultado.append(direita[j])
+        j += 1
+
+    return resultado
+alunos = []
+for i in range(quantidade):
+  matricula = 100000000 + i
+  aluno= criar_aluno(matricula)
+  alunos.append(aluno)
+alunos = merge_sort(alunos)
+for aluno in alunos:
+  print(aluno)
+
+
+with open("alunos.dat", "wb") as arquivo:
+
+    pickle.dump(alunos, arquivo)
+
+print("Alunos salvos com sucesso!")
+
+def aluno_para_bytes(aluno):
+    dados = (
+        str(aluno["matricula"]) + "|" +
+        aluno["nome"] + "|" +
+        aluno["cpf"] + "|" +
+        aluno["curso"] + "|" +
+        aluno["filiacao_mae"] + "|" +
+        aluno["filiacao_pai"] + "|" +
+        str(aluno["ano_ingresso"]) + "|" +
+        str(aluno["ca"])
+    )
+
+    return dados.encode("utf-8")
+registro_bytes = aluno_para_bytes(aluno)
+
+print(registro_bytes)
+print("Tamanho:", len(registro_bytes), "bytes")
+def calcular_tamanho_aluno(aluno):
+    registro_bytes = aluno_para_bytes(aluno)
+    tamanho = len(registro_bytes)
+
+    return tamanho
+for aluno in alunos:
+
+    tamanho = calcular_tamanho_aluno(aluno)
+
+    print(
+        "Matrícula:",
+        aluno["matricula"],
+        "- Tamanho:",
+        tamanho,
+        "byte")
+TAMANHO_REGISTRO_FIXO = 176
+def aluno_para_bytes_fixo(aluno):
+
+    matricula = str(aluno["matricula"]).ljust(9)
+    nome = aluno["nome"].ljust(50)
+    cpf = aluno["cpf"].ljust(11)
+    curso = aluno["curso"].ljust(30)
+    mae = aluno["filiacao_mae"].ljust(30)
+    pai = aluno["filiacao_pai"].ljust(30)
+    ano = str(aluno["ano_ingresso"]).ljust(4)
+    ca = f"{aluno['ca']:.2f}".ljust(5)
+
+    dados = (
+        matricula + "|" +
+        nome + "|" +
+        cpf + "|" +
+        curso + "|" +
+        mae + "|" +
+        pai + "|" +
+        ano + "|" +
+        ca
+    )
+
+    return dados.encode("utf-8")
+def armazenamento_fixo(alunos, tamanho_bloco):
+
+    blocos = []
+    bloco_atual = bytearray()
+
+    for aluno in alunos:
+
+        registro = aluno_para_bytes_fixo(aluno)
+
+        if len(registro) > tamanho_bloco:
+
+            print(
+                "ERRO: O registro",
+                aluno["matricula"],
+                "é maior que o bloco."
+            )
+
+            return []
+
+        # Se o registro não couber no bloco atual,
+        # começamos um novo bloco.
+        if len(bloco_atual) + len(registro) > tamanho_bloco:
+
+            blocos.append(bloco_atual)
+
+            bloco_atual = bytearray()
+
+        bloco_atual.extend(registro)
+
+    # Adiciona o último bloco
+    if len(bloco_atual) > 0:
+
+        blocos.append(bloco_atual)
+
+    return blocos
+def armazenamento_variavel_contiguo(alunos, tamanho_bloco):
+
+    blocos = []
+    bloco_atual = bytearray()
+
+    for aluno in alunos:
+
+        registro = aluno_para_bytes(aluno)
+
+        if len(registro) > tamanho_bloco:
+
+            print(
+                "ERRO: O registro",
+                aluno["matricula"],
+                "é maior que o bloco."
+            )
+
+            return []
+    if len(bloco_atual) + len(registro) > tamanho_bloco:
+
+            if len(bloco_atual) > 0:
+
+                blocos.append(bloco_atual)
+
+            bloco_atual = bytearray()
+
+    bloco_atual.extend(registro)
+
+    if len(bloco_atual) > 0:
+
+        blocos.append(bloco_atual)
+
+    return blocos
+def armazenamento_variavel_espalhado(alunos, tamanho_bloco):
+
+    blocos = []
+    bloco_atual = bytearray()
+
+    for aluno in alunos:
+
+        registro = aluno_para_bytes(aluno)
+
+        posicao = 0
+
+        while posicao < len(registro):
+
+            espaco_disponivel = tamanho_bloco - len(bloco_atual)
+
+            if espaco_disponivel == 0:
+
+                blocos.append(bloco_atual)
+
+                bloco_atual = bytearray()
+
+                espaco_disponivel = tamanho_bloco
+
+            quantidade = min(
+                espaco_disponivel,
+                len(registro) - posicao
+            )
+
+            parte = registro[posicao:posicao + quantidade]
+
+            bloco_atual.extend(parte)
+
+            posicao += quantidade
+
+    if len(bloco_atual) > 0:
+
+        blocos.append(bloco_atual)
+
+    return blocos
+def salvar_blocos(blocos, nome_arquivo):
+
+    with open(nome_arquivo, "wb") as arquivo:
+
+        for bloco in blocos:
+
+            arquivo.write(bloco)
+def mostrar_estatisticas(blocos, tamanho_bloco):
+
+    if len(blocos) == 0:
+
+        print("Nenhum bloco foi utilizado.")
+
+        return
+
+    total_bytes = 0
+    blocos_parciais = 0
+
+    print("\nMAPA DE OCUPAÇÃO DOS BLOCOS:")
+
+    for i, bloco in enumerate(blocos):
+
+        ocupado = len(bloco)
+
+        percentual = (ocupado / tamanho_bloco) * 100
+
+        total_bytes += ocupado
+
+        if ocupado < tamanho_bloco:
+
+            blocos_parciais += 1
+
+        print(
+            f"Bloco {i + 1}: "
+            f"{ocupado} bytes "
+            f"({percentual:.2f}% cheio)"
+        )
+
+    quantidade_blocos = len(blocos)
+
+    ocupacao_media = (
+        total_bytes /
+        (quantidade_blocos * tamanho_bloco)
+    ) * 100
+
+    print("\nESTATÍSTICAS:")
+
+    print(
+        "Número total de blocos:",
+        quantidade_blocos
+    )
+
+    print(
+        f"Ocupação média dos blocos: "
+        f"{ocupacao_media:.2f}%"
+    )
+
+    print(
+        "Número de blocos parcialmente utilizados:",
+        blocos_parciais
+    )
+
+    print(
+        f"Eficiência de armazenamento: "
+        f"{ocupacao_media:.2f}%"
+    )
+print("\n-----------------------------------")
+print("     CONFIGURAÇÃO DO ARMAZENAMENTO")
+print("-----------------------------------")
+
+tamanho_bloco = int(
+    input("Digite o tamanho máximo do bloco (bytes): ")
+)
+
+print("\nEscolha o modo de armazenamento:")
+
+print("1 - Registros de tamanho fixo")
+print("2 - Registros de tamanho variável")
+
+modo = int(input("Digite a opção: "))
+if modo == 1:
+
+    print("\nModo escolhido: TAMANHO FIXO")
+
+    blocos = armazenamento_fixo(
+        alunos,
+        tamanho_bloco
+    )
+
+    nome_arquivo = "alunos_fixo.dat"
+elif modo == 2:
+
+    print("\nEscolha o tipo:")
+
+    print("1 - Contíguo (sem espalhamento)")
+    print("2 - Espalhado (com fragmentação)")
+
+    tipo = int(input("Digite a opção: "))
+
+    if tipo == 1:
+
+        print("\nModo escolhido: VARIÁVEL CONTÍGUO")
+
+        blocos = armazenamento_variavel_contiguo(
+            alunos,
+            tamanho_bloco
+        )
+
+        nome_arquivo = "alunos_variavel_contiguo.dat"
+
+    elif tipo == 2:
+
+        print("\nModo escolhido: VARIÁVEL ESPALHADO")
+
+        blocos = armazenamento_variavel_espalhado(
+            alunos,
+            tamanho_bloco
+        )
+
+        nome_arquivo = "alunos_variavel_espalhado.dat"
+
+    else:
+
+        print("Opção inválida.")
+
+        blocos = []
+
+
+else:
+
+    print("Opção inválida.")
+
+    blocos = []
+if len(blocos) > 0:
+
+    salvar_blocos(
+        blocos,
+        nome_arquivo
+    )
+
+    print(
+        "\nArquivo",
+        nome_arquivo,
+        "criado com sucesso!"
+    )
+
+    mostrar_estatisticas(
+        blocos,
+        tamanho_bloco
+    )
